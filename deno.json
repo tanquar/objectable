@@ -1,0 +1,17 @@
+{
+  "nodeModulesDir": "auto",
+  "tasks": {
+    "dev": "deno run --watch -A main.ts"
+  },
+  "imports": {
+    "@better-auth/mongo-adapter": "npm:@better-auth/mongo-adapter@^1.6.23",
+    "@std/assert": "jsr:@std/assert@1",
+    "better-auth": "npm:better-auth@^1.6.23",
+    "hono": "npm:hono@^4.12.31",
+    "mongodb": "npm:mongodb@^7.5.0"
+  },
+  "compilerOptions": {
+    "jsx": "precompile",
+    "jsxImportSource": "hono/jsx"
+  }
+}

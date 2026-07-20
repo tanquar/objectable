@@ -5,7 +5,21 @@
 # https://docs.deno.com/runtime/fundamentals/setup/#deno_dir
 .deno/
 
+# Node
+node_modules/
+
 # Coverage reports
 # https://docs.deno.com/runtime/reference/cli/coverage/
 coverage/
 *.lcov
+
+# Environment files
+.env
+.env.*
+mise.local.toml
+.mise.local.toml
+mise.*.local.toml
+.mise.*.local.toml
+
+# Local
+local/

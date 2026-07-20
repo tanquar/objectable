@@ -1,0 +1,6 @@
+[tools]
+deno = "latest"
+
+[env]
+BETTER_AUTH_SECRET = { required = true }
+MONGO_URL = { required = true, default = "mongodb://localhost:27017/database" }
