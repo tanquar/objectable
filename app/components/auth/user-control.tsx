@@ -2,7 +2,7 @@ import type { FC } from "hono/jsx";
 import { AuthType } from "../../lib/auth.ts";
 import { LogoutAuthDialog } from "./logout-auth-dialog.tsx";
 
-export type UserControlProps = {
+type UserControlProps = {
   session: AuthType;
   signOutCallbackURL: string;
 };

@@ -1,7 +1,7 @@
 import type { FC } from "hono/jsx";
 import { LoginAuthDialogs } from "./login-auth-dialogs.tsx";
 
-export type GuestControlProps = {
+type GuestControlProps = {
   signInCallbackURL: string;
 };
 
