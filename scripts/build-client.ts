@@ -1,90 +1,30 @@
-import { expandGlob } from "@std/fs/expand-glob";
-
 const repoRoot = new URL("../", import.meta.url);
 
-const outDir = "static";
-const clientRootDir = "app";
+const entry = "app/components/auth/client/main.ts";
+const output = "static/auth.client.gen.js";
 
-function toLocalPath(url: URL): string {
-  return decodeURIComponent(url.pathname);
-}
-
-function toBundleOutputName(entryPath: string): string {
-  const fileName = entryPath.split("/").at(-1) ?? entryPath;
-  return fileName.replace(/\.ts$/, ".js");
-}
-
-function toGeneratedOutputName(bundleOutputName: string): string {
-  if (bundleOutputName.endsWith(".client.js")) {
-    return bundleOutputName.replace(/\.client\.js$/, ".gen.js");
-  }
-
-  return bundleOutputName.replace(/\.js$/, ".gen.js");
-}
-
+// The client bundle is built from the single auth client entry. No --config
+// flag: app/components/auth/client is a workspace member whose deno.json
+// supplies the hono/jsx/dom JSX config.
 export async function buildClient(): Promise<void> {
-  await Deno.mkdir(new URL(outDir, repoRoot), { recursive: true });
+  const basePath = decodeURIComponent(repoRoot.pathname);
+  await Deno.mkdir(new URL("static", repoRoot), { recursive: true });
 
-  const basePath = toLocalPath(repoRoot);
-  const entries: string[] = [];
-  for await (
-    const entry of expandGlob(`${clientRootDir}/**/*.client.ts`, {
-      root: basePath,
-      includeDirs: false,
-    })
-  ) {
-    entries.push(entry.path);
-  }
+  const bundleCommand = new Deno.Command(Deno.execPath(), {
+    args: ["bundle", "--platform=browser", "-o", output, entry],
+    cwd: basePath,
+    stdout: "inherit",
+    stderr: "inherit",
+  });
 
-  if (entries.length === 0) {
-    console.warn(`No client entry files found under ${clientRootDir}/`);
-    return;
-  }
-
-  entries.sort();
-
-  for (const entryPath of entries) {
-    const bundleCommand = new Deno.Command(Deno.execPath(), {
-      args: ["bundle", "--outdir", outDir, entryPath],
-      cwd: basePath,
-      stdout: "inherit",
-      stderr: "inherit",
-    });
-
-    const bundleResult = await bundleCommand.output();
-    if (bundleResult.code !== 0) {
-      throw new Error(
-        `Client bundle failed for ${entryPath} with exit code ${bundleResult.code}`,
-      );
-    }
-
-    const bundleOutputName = toBundleOutputName(entryPath);
-    const generatedOutputName = toGeneratedOutputName(bundleOutputName);
-    const bundledOutput = new URL(`${outDir}/${bundleOutputName}`, repoRoot);
-    const generatedOutput = new URL(
-      `${outDir}/${generatedOutputName}`,
-      repoRoot,
+  const bundleResult = await bundleCommand.output();
+  if (bundleResult.code !== 0) {
+    throw new Error(
+      `Client bundle failed with exit code ${bundleResult.code}`,
     );
-
-    try {
-      await Deno.stat(bundledOutput);
-    } catch {
-      throw new Error(
-        `Expected bundle output was not found: ${bundledOutput.pathname}`,
-      );
-    }
-
-    try {
-      await Deno.remove(generatedOutput);
-    } catch (error) {
-      if (!(error instanceof Deno.errors.NotFound)) {
-        throw error;
-      }
-    }
-
-    await Deno.rename(bundledOutput, generatedOutput);
-    console.log(`Generated ${generatedOutput.pathname}`);
   }
+
+  console.log(`Generated ${output}`);
 }
 
 if (import.meta.main) {

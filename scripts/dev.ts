@@ -1,4 +1,10 @@
-const serverArgs = ["run", "--watch", "-A", "main.ts"];
+const serverArgs = [
+  "run",
+  "--watch",
+  "-A",
+  "--unstable-no-legacy-abort",
+  "main.ts",
+];
 const clientWatcherArgs = ["run", "-A", "scripts/watch-client.ts"];
 
 const serverProcess = new Deno.Command(Deno.execPath(), {

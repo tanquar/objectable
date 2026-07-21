@@ -1,5 +1,6 @@
+import type { FC } from "hono/jsx";
 import { AuthType } from "../lib/auth.ts";
-import { AuthControls } from "./auth-controls.tsx";
+import { AuthControls } from "./auth/auth-controls.tsx";
 
 type StandardHeaderProps = {
   session: AuthType | null;
@@ -7,24 +8,17 @@ type StandardHeaderProps = {
   signOutCallbackURL: string;
 };
 
-export function StandardHeader({
+export const StandardHeader: FC<StandardHeaderProps> = ({
   session,
   signInCallbackURL,
   signOutCallbackURL,
-}: StandardHeaderProps) {
-  return (
-    <>
-      <header>
-        <a href="/">Objectable</a>
-        <AuthControls
-          session={session}
-          signInCallbackURL={signInCallbackURL}
-          signOutCallbackURL={signOutCallbackURL}
-        />
-      </header>
-
-      <div id="auth-client-root"></div>
-      <script type="module" src="/static/auth-header.gen.js"></script>
-    </>
-  );
-}
+}) => (
+  <header>
+    <a href="/">Objectable</a>
+    <AuthControls
+      session={session}
+      signInCallbackURL={signInCallbackURL}
+      signOutCallbackURL={signOutCallbackURL}
+    />
+  </header>
+);

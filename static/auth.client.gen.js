@@ -1,9 +1,59 @@
+var __defProp = Object.defineProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+
+// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/dom/intrinsic-element/components.js
+var components_exports2 = {};
+__export(components_exports2, {
+  button: () => button,
+  clearCache: () => clearCache,
+  composeRef: () => composeRef,
+  form: () => form,
+  input: () => input,
+  link: () => link,
+  meta: () => meta,
+  script: () => script,
+  style: () => style,
+  title: () => title
+});
+
 // node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/constants.js
 var DOM_RENDERER = /* @__PURE__ */ Symbol("RENDERER");
 var DOM_ERROR_HANDLER = /* @__PURE__ */ Symbol("ERROR_HANDLER");
 var DOM_STASH = /* @__PURE__ */ Symbol("STASH");
 var DOM_INTERNAL_TAG = /* @__PURE__ */ Symbol("INTERNAL");
 var DOM_MEMO = /* @__PURE__ */ Symbol("MEMO");
+
+// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/intrinsic-element/common.js
+var deDupeKeyMap = {
+  title: [],
+  script: [
+    "src"
+  ],
+  style: [
+    "data-href"
+  ],
+  link: [
+    "href"
+  ],
+  meta: [
+    "name",
+    "httpEquiv",
+    "charset",
+    "itemProp"
+  ]
+};
+var domRenderers = {};
+var dataPrecedenceAttr = "data-precedence";
+var isStylesheetLinkWithPrecedence = (props) => props.rel === "stylesheet" && "precedence" in props;
+var shouldDeDupeByKey = (tagName, supportSort) => {
+  if (tagName === "link") {
+    return supportSort;
+  }
+  return deDupeKeyMap[tagName].length > 0;
+};
 
 // node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/children.js
 var toArray = (children) => Array.isArray(children) ? children : [
@@ -127,8 +177,8 @@ var hasUnsafeStyleValue = (value) => {
   }
   return quote !== 0 || blockStack.length !== 0;
 };
-var styleObjectForEach = (style, fn) => {
-  for (const [k, v] of Object.entries(style)) {
+var styleObjectForEach = (style2, fn) => {
+  for (const [k, v] of Object.entries(style2)) {
     const key = k[0] === "-" || !/[A-Z]/.test(k) ? k : k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
     if (!isValidStylePropertyName(key)) {
       continue;
@@ -276,6 +326,7 @@ var nameSpaceMap = {
 var buildDataStack = [];
 var refCleanupMap = /* @__PURE__ */ new WeakMap();
 var nameSpaceContext = void 0;
+var getNameSpaceContext2 = () => nameSpaceContext;
 var isNodeString = (node) => "t" in node;
 var eventCache = {
   // pre-define events that are used very frequently
@@ -345,13 +396,13 @@ var applyProps = (container, attributes, oldAttributes) => {
         }
         refCleanupMap.set(container, cleanup);
       } else if (key === "style") {
-        const style = container.style;
+        const style2 = container.style;
         if (typeof value === "string") {
-          style.cssText = value;
+          style2.cssText = value;
         } else {
-          style.cssText = "";
+          style2.cssText = "";
           if (value != null) {
-            styleObjectForEach(value, style.setProperty.bind(style));
+            styleObjectForEach(value, style2.setProperty.bind(style2));
           }
         }
       } else {
@@ -864,10 +915,32 @@ var renderNode = (node, container) => {
   replaceContainer(node, fragment, container);
   container.replaceChildren(fragment);
 };
+var render = (jsxNode, container) => {
+  renderNode(buildNode({
+    tag: "",
+    props: {
+      children: jsxNode
+    }
+  }), container);
+};
+var createPortal = (children, container, key) => ({
+  tag: HONO_PORTAL_ELEMENT,
+  props: {
+    children
+  },
+  key,
+  e: container,
+  p: 1
+});
 
 // node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/hooks/index.js
 var STASH_SATE = 0;
 var STASH_EFFECT = 1;
+var STASH_CALLBACK = 2;
+var STASH_MEMO = 3;
+var STASH_REF = 4;
+var resolvedPromiseValueMap = /* @__PURE__ */ new WeakMap();
+var isDepsChanged = (prevDeps, deps) => !prevDeps || !deps || prevDeps.length !== deps.length || deps.some((dep, i) => dep !== prevDeps[i]);
 var updateHook = void 0;
 var pendingStack = [];
 var useState = (initialState) => {
@@ -932,151 +1005,802 @@ var useState = (initialState) => {
     }
   ];
 };
-
-// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/dom/client.js
-var createRoot = (element, options = {}) => {
-  let setJsxNode = (
-    // unmounted
-    void 0
-  );
-  if (Object.keys(options).length > 0) {
-    console.warn("createRoot options are not supported yet");
+var useCallback = (callback, deps) => {
+  const buildData = buildDataStack.at(-1);
+  if (!buildData) {
+    return callback;
   }
-  return {
-    render(jsxNode) {
-      if (setJsxNode === null) {
-        throw new Error("Cannot update an unmounted root");
-      }
-      if (setJsxNode) {
-        setJsxNode(jsxNode);
-      } else {
-        renderNode(buildNode({
-          tag: () => {
-            const [_jsxNode, _setJsxNode] = useState(jsxNode);
-            setJsxNode = _setJsxNode;
-            return _jsxNode;
-          },
-          props: {}
-        }), element);
-      }
-    },
-    unmount() {
-      setJsxNode?.(null);
-      setJsxNode = null;
-    }
+  const [, node] = buildData;
+  const callbackArray = node[DOM_STASH][1][STASH_CALLBACK] ||= [];
+  const hookIndex = node[DOM_STASH][0]++;
+  const prevDeps = callbackArray[hookIndex];
+  if (isDepsChanged(prevDeps?.[1], deps)) {
+    callbackArray[hookIndex] = [
+      callback,
+      deps
+    ];
+  } else {
+    callback = callbackArray[hookIndex][0];
+  }
+  return callback;
+};
+var useRef = (initialValue) => {
+  const buildData = buildDataStack.at(-1);
+  if (!buildData) {
+    return {
+      current: initialValue
+    };
+  }
+  const [, node] = buildData;
+  const refArray = node[DOM_STASH][1][STASH_REF] ||= [];
+  const hookIndex = node[DOM_STASH][0]++;
+  return refArray[hookIndex] ||= {
+    current: initialValue
   };
 };
-
-// app/client/auth-header.client.ts
-function findDialog(dialogKey) {
-  const dialog = document.getElementById(dialogKey);
-  return dialog instanceof HTMLDialogElement ? dialog : null;
-}
-function initAuthHeaderInteractions() {
-  const body = document.body;
-  if (body.dataset.authHeaderBound === "1") {
-    return;
+var use = (promise) => {
+  const cachedRes = resolvedPromiseValueMap.get(promise);
+  if (cachedRes) {
+    if (cachedRes.length === 2) {
+      throw cachedRes[1];
+    }
+    return cachedRes[0];
   }
-  body.dataset.authHeaderBound = "1";
-  document.querySelectorAll("[data-dialog-open]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const dialogId = button.getAttribute("data-dialog-open");
-      if (!dialogId) return;
-      const dialog = findDialog(dialogId);
-      dialog?.showModal();
-    });
-  });
-  document.querySelectorAll("[data-dialog-close]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const dialog = button.closest("dialog");
-      if (dialog instanceof HTMLDialogElement) {
-        dialog.close();
-      }
-    });
-  });
-  document.querySelectorAll("[data-dialog-switch]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextDialogId = button.getAttribute("data-dialog-switch");
-      if (!nextDialogId) return;
-      const currentDialog = button.closest("dialog");
-      if (currentDialog instanceof HTMLDialogElement) {
-        currentDialog.close();
-      }
-      const nextDialog = findDialog(nextDialogId);
-      nextDialog?.showModal();
-    });
-  });
-  document.querySelectorAll("dialog").forEach((dialog) => {
-    dialog.addEventListener("click", (event) => {
-      if (event.target === dialog) {
-        dialog.close();
-      }
-    });
-  });
-  document.querySelectorAll("form[data-auth-form]").forEach((form) => {
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      const authKind = form.getAttribute("data-auth-form");
-      const action = form.getAttribute("action");
-      if (!authKind || !action) return;
-      const formData = new FormData(form);
-      const callbackURL = String(formData.get("callbackURL") || "/");
-      const errorEl = document.querySelector('[data-auth-error="' + authKind + '"]');
-      if (errorEl) {
-        errorEl.textContent = "";
-      }
-      const submitButton = form.querySelector("button[type='submit']");
-      if (submitButton instanceof HTMLButtonElement) {
-        submitButton.disabled = true;
-      }
-      let body2 = {};
-      if (authKind === "signin") {
-        body2 = {
-          email: String(formData.get("email") || ""),
-          password: String(formData.get("password") || ""),
-          callbackURL
-        };
-      } else if (authKind === "signup") {
-        body2 = {
-          name: String(formData.get("name") || ""),
-          email: String(formData.get("email") || ""),
-          password: String(formData.get("password") || ""),
-          callbackURL
-        };
-      }
-      try {
-        const response = await fetch(action, {
-          method: "POST",
-          credentials: "include",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify(body2)
+  promise.then((res) => resolvedPromiseValueMap.set(promise, [
+    res
+  ]), (e) => resolvedPromiseValueMap.set(promise, [
+    void 0,
+    e
+  ]));
+  throw promise;
+};
+var useMemo = (factory, deps) => {
+  const buildData = buildDataStack.at(-1);
+  if (!buildData) {
+    return factory();
+  }
+  const [, node] = buildData;
+  const memoArray = node[DOM_STASH][1][STASH_MEMO] ||= [];
+  const hookIndex = node[DOM_STASH][0]++;
+  const prevDeps = memoArray[hookIndex];
+  if (isDepsChanged(prevDeps?.[1], deps)) {
+    memoArray[hookIndex] = [
+      factory(),
+      deps
+    ];
+  }
+  return memoArray[hookIndex][0];
+};
+
+// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/dom/hooks/index.js
+var FormContext = createContext2({
+  pending: false,
+  data: null,
+  method: null,
+  action: null
+});
+var actions = /* @__PURE__ */ new Set();
+var registerAction = (action) => {
+  actions.add(action);
+  action.finally(() => actions.delete(action));
+};
+
+// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/dom/intrinsic-element/components.js
+var clearCache = () => {
+  blockingPromiseMap = /* @__PURE__ */ Object.create(null);
+  createdElements = /* @__PURE__ */ Object.create(null);
+};
+var composeRef = (ref, cb) => {
+  return useMemo(() => (e) => {
+    let refCleanup;
+    if (ref) {
+      if (typeof ref === "function") {
+        refCleanup = ref(e) || (() => {
+          ref(null);
         });
-        const payload = await response.json().catch(() => null);
-        if (!response.ok) {
-          const message = payload?.message || "Authentication failed.";
-          if (errorEl) {
-            errorEl.textContent = message;
+      } else if (ref && "current" in ref) {
+        ref.current = e;
+        refCleanup = () => {
+          ref.current = null;
+        };
+      }
+    }
+    const cbCleanup = cb(e);
+    return () => {
+      cbCleanup?.();
+      refCleanup?.();
+    };
+  }, [
+    ref
+  ]);
+};
+var blockingPromiseMap = /* @__PURE__ */ Object.create(null);
+var createdElements = /* @__PURE__ */ Object.create(null);
+var documentMetadataTag = (tag, props, preserveNodeType, supportSort, supportBlocking) => {
+  if (props?.itemProp) {
+    return {
+      tag,
+      props,
+      type: tag,
+      ref: props.ref
+    };
+  }
+  const head = document.head;
+  let { onLoad, onError, precedence, blocking, ...restProps } = props;
+  let element = null;
+  let created = false;
+  const deDupeKeys = deDupeKeyMap[tag];
+  const deDupeByKey = shouldDeDupeByKey(tag, supportSort);
+  const isDeDupeCandidateLink = (e) => e.getAttribute("rel") === "stylesheet" && e.getAttribute(dataPrecedenceAttr) !== null;
+  let existingElements = void 0;
+  if (deDupeByKey) {
+    const tags = head.querySelectorAll(tag);
+    LOOP: for (const e of tags) {
+      if (tag === "link" && !isDeDupeCandidateLink(e)) {
+        continue;
+      }
+      for (const key of deDupeKeys) {
+        if (e.getAttribute(key) === props[key]) {
+          element = e;
+          break LOOP;
+        }
+      }
+    }
+    if (!element) {
+      const cacheKey = deDupeKeys.reduce((acc, key) => props[key] === void 0 ? acc : `${acc}-${key}-${props[key]}`, tag);
+      created = !createdElements[cacheKey];
+      element = createdElements[cacheKey] ||= (() => {
+        const e = document.createElement(tag);
+        for (const key of deDupeKeys) {
+          if (props[key] !== void 0) {
+            e.setAttribute(key, props[key]);
           }
+        }
+        if (props.rel) {
+          e.setAttribute("rel", props.rel);
+        }
+        return e;
+      })();
+    }
+  } else {
+    existingElements = head.querySelectorAll(tag);
+  }
+  precedence = supportSort ? precedence ?? "" : void 0;
+  if (supportSort) {
+    restProps[dataPrecedenceAttr] = precedence;
+  }
+  const insert = useCallback((e) => {
+    if (deDupeByKey) {
+      if (tag === "link" && precedence !== void 0) {
+        let found2 = false;
+        for (const existingElement of head.querySelectorAll(tag)) {
+          const existingPrecedence = existingElement.getAttribute(dataPrecedenceAttr);
+          if (existingPrecedence === null) {
+            head.insertBefore(e, existingElement);
+            return;
+          }
+          if (found2 && existingPrecedence !== precedence) {
+            head.insertBefore(e, existingElement);
+            return;
+          }
+          if (existingPrecedence === precedence) {
+            found2 = true;
+          }
+        }
+        head.appendChild(e);
+        return;
+      }
+      let found = false;
+      for (const existingElement of head.querySelectorAll(tag)) {
+        if (found && existingElement.getAttribute(dataPrecedenceAttr) !== precedence) {
+          head.insertBefore(e, existingElement);
           return;
         }
-        const redirectTo = typeof payload?.url === "string" && payload.url.startsWith("/") ? payload.url : callbackURL;
-        globalThis.location.href = redirectTo;
-      } catch {
-        if (errorEl) {
-          errorEl.textContent = "Network error.";
-        }
-      } finally {
-        if (submitButton instanceof HTMLButtonElement) {
-          submitButton.disabled = false;
+        if (existingElement.getAttribute(dataPrecedenceAttr) === precedence) {
+          found = true;
         }
       }
+      head.appendChild(e);
+    } else if (tag === "link") {
+      if (!head.contains(e)) {
+        head.appendChild(e);
+      }
+    } else if (existingElements) {
+      let found = false;
+      for (const existingElement of existingElements) {
+        if (existingElement === e) {
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        head.insertBefore(e, head.contains(existingElements[0]) ? existingElements[0] : head.querySelector(tag));
+      }
+      existingElements = void 0;
+    }
+  }, [
+    deDupeByKey,
+    precedence,
+    tag
+  ]);
+  const ref = composeRef(props.ref, (e) => {
+    const key = deDupeKeys[0];
+    if (preserveNodeType === 2) {
+      e.innerHTML = "";
+    }
+    if (created || existingElements) {
+      insert(e);
+    }
+    if (!onError && !onLoad) {
+      return;
+    }
+    if (!key) {
+      return;
+    }
+    let promise = blockingPromiseMap[e.getAttribute(key)] ||= new Promise((resolve, reject) => {
+      e.addEventListener("load", resolve);
+      e.addEventListener("error", reject);
+    });
+    if (onLoad) {
+      promise = promise.then(onLoad);
+    }
+    if (onError) {
+      promise = promise.catch(onError);
+    }
+    promise.catch(() => {
     });
   });
-}
-var root = document.getElementById("auth-client-root");
-if (root instanceof HTMLElement) {
-  createRoot(root).render(" ");
-  initAuthHeaderInteractions();
-}
+  if (supportBlocking && blocking === "render") {
+    const key = deDupeKeyMap[tag][0];
+    if (key && props[key]) {
+      const value = props[key];
+      const promise = blockingPromiseMap[value] ||= new Promise((resolve, reject) => {
+        insert(element);
+        element.addEventListener("load", resolve);
+        element.addEventListener("error", reject);
+      });
+      use(promise);
+    }
+  }
+  const jsxNode = {
+    tag,
+    type: tag,
+    props: {
+      ...restProps,
+      ref
+    },
+    ref
+  };
+  jsxNode.p = preserveNodeType;
+  if (element) {
+    jsxNode.e = element;
+  }
+  return createPortal(jsxNode, head);
+};
+var title = (props) => {
+  const nameSpaceContext2 = getNameSpaceContext2();
+  const ns = nameSpaceContext2 && useContext(nameSpaceContext2);
+  if (ns?.endsWith("svg")) {
+    return {
+      tag: "title",
+      props,
+      type: "title",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ref: props.ref
+    };
+  }
+  return documentMetadataTag("title", props, void 0, false, false);
+};
+var script = (props) => {
+  if (!props || [
+    "src",
+    "async"
+  ].some((k) => !props[k])) {
+    return {
+      tag: "script",
+      props,
+      type: "script",
+      ref: props.ref
+    };
+  }
+  return documentMetadataTag("script", props, 1, false, true);
+};
+var style = (props) => {
+  if (!props || ![
+    "href",
+    "precedence"
+  ].every((k) => k in props)) {
+    return {
+      tag: "style",
+      props,
+      type: "style",
+      ref: props.ref
+    };
+  }
+  props["data-href"] = props.href;
+  delete props.href;
+  return documentMetadataTag("style", props, 2, true, true);
+};
+var link = (props) => {
+  if (!props || [
+    "onLoad",
+    "onError"
+  ].some((k) => k in props) || props.rel === "stylesheet" && (!("precedence" in props) || "disabled" in props)) {
+    return {
+      tag: "link",
+      props,
+      type: "link",
+      ref: props.ref
+    };
+  }
+  return documentMetadataTag("link", props, 1, isStylesheetLinkWithPrecedence(props), true);
+};
+var meta = (props) => {
+  return documentMetadataTag("meta", props, void 0, false, false);
+};
+var customEventFormAction = /* @__PURE__ */ Symbol();
+var form = (props) => {
+  const { action, ...restProps } = props;
+  if (typeof action !== "function") {
+    ;
+    restProps.action = action;
+  }
+  const [state, setState] = useState([
+    null,
+    false
+  ]);
+  const onSubmit = useCallback(async (ev) => {
+    const currentAction = ev.isTrusted ? action : ev.detail[customEventFormAction];
+    if (typeof currentAction !== "function") {
+      return;
+    }
+    ev.preventDefault();
+    const formData = new FormData(ev.target);
+    setState([
+      formData,
+      true
+    ]);
+    const actionRes = currentAction(formData);
+    if (actionRes instanceof Promise) {
+      registerAction(actionRes);
+      await actionRes;
+    }
+    setState([
+      null,
+      true
+    ]);
+  }, []);
+  const ref = composeRef(props.ref, (el) => {
+    el.addEventListener("submit", onSubmit);
+    return () => {
+      el.removeEventListener("submit", onSubmit);
+    };
+  });
+  const [data, isDirty] = state;
+  state[1] = false;
+  return {
+    tag: FormContext,
+    props: {
+      value: {
+        pending: data !== null,
+        data,
+        method: data ? "post" : null,
+        action: data ? action : null
+      },
+      children: {
+        tag: "form",
+        props: {
+          ...restProps,
+          ref
+        },
+        type: "form",
+        ref
+      }
+    },
+    f: isDirty
+  };
+};
+var formActionableElement = (tag, { formAction, ...props }) => {
+  if (typeof formAction === "function") {
+    const onClick = useCallback((ev) => {
+      ev.preventDefault();
+      ev.currentTarget.form.dispatchEvent(new CustomEvent("submit", {
+        detail: {
+          [customEventFormAction]: formAction
+        }
+      }));
+    }, []);
+    props.ref = composeRef(props.ref, (el) => {
+      el.addEventListener("click", onClick);
+      return () => {
+        el.removeEventListener("click", onClick);
+      };
+    });
+  }
+  return {
+    tag,
+    props,
+    type: tag,
+    ref: props.ref
+  };
+};
+var input = (props) => formActionableElement("input", props);
+var button = (props) => formActionableElement("button", props);
+Object.assign(domRenderers, {
+  title,
+  script,
+  style,
+  link,
+  meta,
+  form,
+  input,
+  button
+});
+
+// node_modules/.deno/hono@4.12.31/node_modules/hono/dist/jsx/dom/jsx-dev-runtime.js
+var jsxDEV = (tag, props, key) => {
+  if (typeof tag === "string" && components_exports2[tag]) {
+    tag = components_exports2[tag];
+  }
+  return {
+    tag,
+    type: tag,
+    props,
+    key,
+    ref: props.ref
+  };
+};
+var Fragment = (props) => jsxDEV("", props, void 0);
+
+// app/components/auth/client/mount.tsx
+var mountIslands = (islands) => {
+  const containers = globalThis.document.querySelectorAll("[data-island]");
+  for (const container of containers) {
+    const name = container.dataset.island ?? "";
+    const Island = islands[name];
+    if (Island === void 0) throw new Error(`unknown island: ${name}`);
+    container.replaceChildren();
+    render(/* @__PURE__ */ jsxDEV(Island, {
+      container
+    }), container);
+  }
+};
+
+// app/components/auth/client/login-auth-dialogs.tsx
+var buildBody = (kind, formData, callbackURL) => {
+  const email = String(formData.get("email") ?? "");
+  const password = String(formData.get("password") ?? "");
+  if (kind === "signin") return {
+    email,
+    password,
+    callbackURL
+  };
+  return {
+    name: String(formData.get("name") ?? ""),
+    email,
+    password,
+    callbackURL
+  };
+};
+var LoginAuthDialogs = ({ container }) => {
+  const signInCallbackURL = container.dataset.signInCallbackUrl ?? "/";
+  const loginDialogRef = useRef(null);
+  const signupDialogRef = useRef(null);
+  const [errors, setErrors] = useState({
+    signin: "",
+    signup: ""
+  });
+  const [pending, setPending] = useState(null);
+  const submitAuthForm = async (event, kind) => {
+    event.preventDefault();
+    const form2 = event.currentTarget;
+    const action = form2.getAttribute("action");
+    if (action === null) return;
+    const formData = new FormData(form2);
+    const callbackURL = String(formData.get("callbackURL") ?? "/");
+    setErrors((prev) => ({
+      ...prev,
+      [kind]: ""
+    }));
+    setPending(kind);
+    try {
+      const response = await fetch(action, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify(buildBody(kind, formData, callbackURL))
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setErrors((prev) => ({
+          ...prev,
+          [kind]: payload?.message ?? "Authentication failed."
+        }));
+        return;
+      }
+      const redirectTo = typeof payload?.url === "string" && payload.url.startsWith("/") ? payload.url : callbackURL;
+      globalThis.location.href = redirectTo;
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        [kind]: "Network error."
+      }));
+    } finally {
+      setPending(null);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV(Fragment, {
+    children: [
+      /* @__PURE__ */ jsxDEV("button", {
+        type: "button",
+        "data-dialog-open": "login-dialog",
+        onClick: () => loginDialogRef.current?.showModal(),
+        children: "login"
+      }),
+      /* @__PURE__ */ jsxDEV("dialog", {
+        id: "login-dialog",
+        ref: loginDialogRef,
+        onClick: (event) => {
+          if (event.target === loginDialogRef.current) {
+            loginDialogRef.current?.close();
+          }
+        },
+        children: /* @__PURE__ */ jsxDEV("form", {
+          method: "post",
+          action: "/api/auth/sign-in/email",
+          "data-auth-form": "signin",
+          onSubmit: (event) => submitAuthForm(event, "signin"),
+          children: [
+            /* @__PURE__ */ jsxDEV("h2", {
+              children: "login"
+            }),
+            /* @__PURE__ */ jsxDEV("label", {
+              children: [
+                /* @__PURE__ */ jsxDEV("span", {
+                  children: "email"
+                }),
+                /* @__PURE__ */ jsxDEV("input", {
+                  type: "email",
+                  name: "email",
+                  autocomplete: "email",
+                  required: true
+                })
+              ]
+            }),
+            /* @__PURE__ */ jsxDEV("label", {
+              children: [
+                /* @__PURE__ */ jsxDEV("span", {
+                  children: "password"
+                }),
+                /* @__PURE__ */ jsxDEV("input", {
+                  type: "password",
+                  name: "password",
+                  autocomplete: "current-password",
+                  required: true,
+                  minLength: 8
+                })
+              ]
+            }),
+            /* @__PURE__ */ jsxDEV("input", {
+              type: "hidden",
+              name: "callbackURL",
+              value: signInCallbackURL
+            }),
+            /* @__PURE__ */ jsxDEV("p", {
+              "data-auth-error": "signin",
+              children: errors.signin
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "button",
+              "data-dialog-switch": "signup-dialog",
+              onClick: () => {
+                loginDialogRef.current?.close();
+                signupDialogRef.current?.showModal();
+              },
+              children: "signup"
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "button",
+              "data-dialog-close": true,
+              onClick: () => loginDialogRef.current?.close(),
+              children: "cancel"
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "submit",
+              disabled: pending === "signin",
+              children: "login"
+            })
+          ]
+        })
+      }),
+      /* @__PURE__ */ jsxDEV("dialog", {
+        id: "signup-dialog",
+        ref: signupDialogRef,
+        onClick: (event) => {
+          if (event.target === signupDialogRef.current) {
+            signupDialogRef.current?.close();
+          }
+        },
+        children: /* @__PURE__ */ jsxDEV("form", {
+          method: "post",
+          action: "/api/auth/sign-up/email",
+          "data-auth-form": "signup",
+          onSubmit: (event) => submitAuthForm(event, "signup"),
+          children: [
+            /* @__PURE__ */ jsxDEV("h2", {
+              children: "signup"
+            }),
+            /* @__PURE__ */ jsxDEV("label", {
+              children: [
+                /* @__PURE__ */ jsxDEV("span", {
+                  children: "name"
+                }),
+                /* @__PURE__ */ jsxDEV("input", {
+                  name: "name",
+                  autocomplete: "name",
+                  required: true
+                })
+              ]
+            }),
+            /* @__PURE__ */ jsxDEV("label", {
+              children: [
+                /* @__PURE__ */ jsxDEV("span", {
+                  children: "email"
+                }),
+                /* @__PURE__ */ jsxDEV("input", {
+                  type: "email",
+                  name: "email",
+                  autocomplete: "email",
+                  required: true
+                })
+              ]
+            }),
+            /* @__PURE__ */ jsxDEV("label", {
+              children: [
+                /* @__PURE__ */ jsxDEV("span", {
+                  children: "password"
+                }),
+                /* @__PURE__ */ jsxDEV("input", {
+                  type: "password",
+                  name: "password",
+                  autocomplete: "new-password",
+                  required: true,
+                  minLength: 8
+                })
+              ]
+            }),
+            /* @__PURE__ */ jsxDEV("input", {
+              type: "hidden",
+              name: "callbackURL",
+              value: signInCallbackURL
+            }),
+            /* @__PURE__ */ jsxDEV("p", {
+              "data-auth-error": "signup",
+              children: errors.signup
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "button",
+              "data-dialog-switch": "login-dialog",
+              onClick: () => {
+                signupDialogRef.current?.close();
+                loginDialogRef.current?.showModal();
+              },
+              children: "login"
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "button",
+              "data-dialog-close": true,
+              onClick: () => signupDialogRef.current?.close(),
+              children: "cancel"
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "submit",
+              disabled: pending === "signup",
+              children: "signup"
+            })
+          ]
+        })
+      })
+    ]
+  });
+};
+
+// app/components/auth/client/logout-auth-dialog.tsx
+var LogoutAuthDialog = ({ container }) => {
+  const signOutCallbackURL = container.dataset.signOutCallbackUrl ?? "/";
+  const dialogRef = useRef(null);
+  const [error, setError] = useState("");
+  const [pending, setPending] = useState(false);
+  const submitAuthForm = async (event) => {
+    event.preventDefault();
+    const form2 = event.currentTarget;
+    const action = form2.getAttribute("action");
+    if (action === null) return;
+    const formData = new FormData(form2);
+    const callbackURL = String(formData.get("callbackURL") ?? "/");
+    setError("");
+    setPending(true);
+    try {
+      const response = await fetch(action, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "content-type": "application/json"
+        },
+        body: JSON.stringify({
+          callbackURL
+        })
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(payload?.message ?? "Authentication failed.");
+        return;
+      }
+      const redirectTo = typeof payload?.url === "string" && payload.url.startsWith("/") ? payload.url : callbackURL;
+      globalThis.location.href = redirectTo;
+    } catch {
+      setError("Network error.");
+    } finally {
+      setPending(false);
+    }
+  };
+  return /* @__PURE__ */ jsxDEV(Fragment, {
+    children: [
+      /* @__PURE__ */ jsxDEV("button", {
+        type: "button",
+        "data-dialog-open": "logout-dialog",
+        onClick: () => dialogRef.current?.showModal(),
+        children: "logout"
+      }),
+      /* @__PURE__ */ jsxDEV("dialog", {
+        id: "logout-dialog",
+        ref: dialogRef,
+        onClick: (event) => {
+          if (event.target === dialogRef.current) dialogRef.current?.close();
+        },
+        children: /* @__PURE__ */ jsxDEV("form", {
+          method: "post",
+          action: "/api/auth/sign-out",
+          "data-auth-form": "signout",
+          onSubmit: submitAuthForm,
+          children: [
+            /* @__PURE__ */ jsxDEV("h2", {
+              children: "logout"
+            }),
+            /* @__PURE__ */ jsxDEV("input", {
+              type: "hidden",
+              name: "callbackURL",
+              value: signOutCallbackURL
+            }),
+            /* @__PURE__ */ jsxDEV("p", {
+              "data-auth-error": "signout",
+              children: error
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "button",
+              "data-dialog-close": true,
+              onClick: () => dialogRef.current?.close(),
+              children: "cancel"
+            }),
+            /* @__PURE__ */ jsxDEV("button", {
+              type: "submit",
+              disabled: pending,
+              children: "logout"
+            })
+          ]
+        })
+      })
+    ]
+  });
+};
+
+// app/components/auth/client/islands.tsx
+var ISLANDS = {
+  "login-auth-dialogs": LoginAuthDialogs,
+  "logout-auth-dialog": LogoutAuthDialog
+};
+
+// app/components/auth/client/main.ts
+mountIslands(ISLANDS);
