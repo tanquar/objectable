@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { mongodbAdapter } from "@better-auth/mongo-adapter";
 import { getClient } from "./client.ts";
+import type { HonoRequest } from "hono";
 
 const client = await getClient();
 const db = client.db();
@@ -18,3 +19,9 @@ export type AuthType = {
   user: typeof auth.$Infer.Session.user | null;
   session: typeof auth.$Infer.Session.session | null;
 };
+
+export async function sessionFromRequest(
+  req: HonoRequest,
+): Promise<AuthType | null> {
+  return await auth.api.getSession({ headers: req.raw.headers });
+}

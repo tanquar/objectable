@@ -1,29 +1,38 @@
-import { Hono } from "hono";
-import { auth } from "../lib/auth.ts";
-import { StandardHeader } from "../components/standard-header.tsx";
+import { FC } from "hono/jsx";
+import { Layout } from "../routes/layout.tsx";
+import { createRouter } from "../lib/create-app.ts";
+import { AuthType } from "../lib/auth.ts";
 
-const router = new Hono()
-  .get("/", async (c) => {
-    const session = await auth.api.getSession({
-      headers: c.req.raw.headers,
-    });
+const GuestHome: FC = () => (
+  <section>
+    <p>home</p>
+    <p>login required</p>
+  </section>
+);
+
+const UserHome: FC<{ user: AuthType["user"] }> = ({ user }) => (
+  <section>
+    <p>home</p>
+    <p>
+      user: {user?.name} ({user?.email})
+    </p>
+    <a href="/protected">/protected</a>
+  </section>
+);
+
+const router = createRouter()
+  .get("/", (c) => {
+    const session = c.get("session");
     const signInCallbackURL = c.req.query("callbackURL") ?? "/";
 
-    return c.render(
-      <main>
-        <StandardHeader
-          user={session?.user ?? null}
-          signInCallbackURL={signInCallbackURL}
-          signOutCallbackURL="/"
-        />
-
-        <section>
-          <p>home</p>
-          {session ? <p>username: {session.user.name}</p> : null}
-          {signInCallbackURL !== "/" ? <p>login required</p> : null}
-          <a href="/protected">/protected</a>
-        </section>
-      </main>,
+    return c.html(
+      <Layout
+        session={session}
+        signInCallbackURL={signInCallbackURL}
+        signOutCallbackURL="/"
+      >
+        {session ? <UserHome user={session.user} /> : <GuestHome />}
+      </Layout>,
     );
   });
 

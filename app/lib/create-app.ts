@@ -1,8 +1,14 @@
 import { Hono } from "hono";
-import type { AuthType } from "./auth.ts";
+import { type AuthType } from "./auth.ts";
+
+type Env = {
+  Variables: {
+    session: AuthType | null;
+  };
+};
 
 export function createRouter() {
-  return new Hono<{ Bindings: AuthType }>({
+  return new Hono<Env>({
     strict: false,
   });
 }

@@ -1,15 +1,14 @@
+import { AuthType } from "../lib/auth.ts";
 import { AuthControls } from "./auth-controls.tsx";
 
 type StandardHeaderProps = {
-  user: {
-    name: string;
-  } | null;
+  session: AuthType | null;
   signInCallbackURL: string;
   signOutCallbackURL: string;
 };
 
 export function StandardHeader({
-  user,
+  session,
   signInCallbackURL,
   signOutCallbackURL,
 }: StandardHeaderProps) {
@@ -18,7 +17,7 @@ export function StandardHeader({
       <header>
         <a href="/">Objectable</a>
         <AuthControls
-          user={user}
+          session={session}
           signInCallbackURL={signInCallbackURL}
           signOutCallbackURL={signOutCallbackURL}
         />

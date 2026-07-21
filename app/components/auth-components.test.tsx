@@ -7,7 +7,7 @@ import { LogoutAuthDialog } from "./logout-auth-dialog.tsx";
 Deno.test("StandardHeader renders login dialogs for guest users", () => {
   const html = renderToString(
     <StandardHeader
-      user={null}
+      session={null}
       signInCallbackURL="/protected"
       signOutCallbackURL="/"
     />,
